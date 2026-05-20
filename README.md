@@ -61,3 +61,6 @@ memory-game.html (單一檔案，無外部依賴)
 
 ### 2026-05-20 - eeb45b3
 - **feat: add memory card game** — 初始版本：三種難度、翻牌配對、計步計時
+
+### 2026-05-20 - 9904bea
+- **style: add brain emoji to title**
