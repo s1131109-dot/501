@@ -1,0 +1,35 @@
+#!/bin/sh
+# post-commit hook - 自動更新 README.md 變更記錄
+# 當 memory-game.html 被修改時，自動追加 changelog 項目
+
+# 防止遞迴（避免 amend 再次觸發 hook）
+if [ -n "$HOOK_POST_COMMIT_RUNNING" ]; then
+    exit 0
+fi
+export HOOK_POST_COMMIT_RUNNING=1
+
+CHANGED_FILES=$(git diff-tree --no-commit-id -r --name-only HEAD)
+
+echo "$CHANGED_FILES" | grep -q "memory-game.html" || exit 0
+
+# 取得 commit 資訊
+HASH=$(git log -1 --pretty=format:'%h')
+DATE=$(git log -1 --pretty=format:'%ai' | cut -d' ' -f1)
+SUBJECT=$(git log -1 --pretty=format:'%s')
+
+# 避免重複記錄（檢查 README.md 中是否已有該 commit hash）
+if [ -f README.md ]; then
+    LAST_HASH=$(grep -o "$HASH" README.md 2>/dev/null | tail -1)
+    if [ "$LAST_HASH" = "$HASH" ]; then
+        exit 0
+    fi
+fi
+
+# 追加 changelog
+ENTRY="\n### $DATE - $HASH\n- **$SUBJECT**\n"
+printf "%b" "$ENTRY" >> README.md
+
+git add README.md
+git commit --amend --no-edit --allow-empty
+
+echo "[post-commit] README.md changelog updated for commit $HASH"
