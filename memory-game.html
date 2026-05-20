@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>記憶力翻卡遊戲</title>
+<style>
+body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+h1 { color: #333; margin-bottom: 10px; }
+.controls { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+select, button { padding: 8px 16px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; }
+button:hover { background: #e0e0e0; }
+.stats { font-size: 18px; margin-bottom: 20px; color: #555; }
+.game-board { display: grid; gap: 10px; perspective: 1000px; }
+.card { width: 80px; height: 100px; position: relative; transform-style: preserve-3d; transition: transform 0.5s; cursor: pointer; }
+.card.flipped { transform: rotateY(180deg); }
+.card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+.card-front { background: #1a73e8; color: white; }
+.card-back { background: white; color: #333; transform: rotateY(180deg); }
+.card.matched .card-back { background: #e6f4ea; color: #137333; }
+</style>
+</head>
+<body>
+<h1>記憶力翻牌大考驗</h1>
+<div class="controls">
+<label for="difficulty">難度：</label>
+<select id="difficulty">
+<option value="easy">簡單 (4x3)</option>
+<option value="medium" selected>中等 (4x4)</option>
+<option value="hard">困難 (6x4)</option>
+</select>
+<button onclick="initGame()">重新開始</button>
+</div>
+<div class="stats">步數: <span id="moves">0</span> | 時間: <span id="time">0</span> 秒</div>
+<div id="board" class="game-board"></div>
+<script>
+const EMOJIS = ['🍎','🍌','🍓','🍇','🍊','🍉','🍍','🥝','🍒','🥑','🍋','🍏'];
+let cards = [];
+let flippedCards = [];
+let moves = 0;
+let timer = null;
+let seconds = 0;
+let isLock = false;
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function initGame() {
+  clearTimeout(timer);
+  timer = null;
+  seconds = 0;
+  moves = 0;
+  flippedCards = [];
+  isLock = false;
+  document.getElementById('moves').textContent = '0';
+  document.getElementById('time').textContent = '0';
+
+  const diff = document.getElementById('difficulty').value;
+  let cols, rows, pairs;
+  if (diff === 'easy') { cols = 4; rows = 3; pairs = 6; }
+  else if (diff === 'medium') { cols = 4; rows = 4; pairs = 8; }
+  else { cols = 6; rows = 4; pairs = 12; }
+
+  const selected = EMOJIS.slice(0, pairs);
+  let deck = [...selected, ...selected];
+  shuffle(deck);
+
+  cards = deck.map((emoji, i) => ({ id: i, emoji, matched: false, flipped: false }));
+
+  const board = document.getElementById('board');
+  board.style.gridTemplateColumns = `repeat(${cols}, 80px)`;
+  board.innerHTML = cards.map(card => `
+    <div class="card" data-id="${card.id}" onclick="flipCard(${card.id})">
+      <div class="card-face card-front">?</div>
+      <div class="card-face card-back">${card.emoji}</div>
+    </div>
+  `).join('');
+
+  if (!timer) {
+    timer = setInterval(() => {
+      seconds++;
+      document.getElementById('time').textContent = seconds;
+    }, 1000);
+  }
+}
+
+function flipCard(id) {
+  if (isLock) return;
+  const card = cards.find(c => c.id === id);
+  if (!card || card.flipped || card.matched) return;
+  if (flippedCards.length >= 2) return;
+
+  card.flipped = true;
+  flippedCards.push(card);
+  document.querySelector(`.card[data-id="${id}"]`).classList.add('flipped');
+
+  if (flippedCards.length === 2) {
+    moves++;
+    document.getElementById('moves').textContent = moves;
+    checkMatch();
+  }
+}
+
+function checkMatch() {
+  isLock = true;
+  const [a, b] = flippedCards;
+  if (a.emoji === b.emoji) {
+    a.matched = true;
+    b.matched = true;
+    document.querySelector(`.card[data-id="${a.id}"]`).classList.add('matched');
+    document.querySelector(`.card[data-id="${b.id}"]`).classList.add('matched');
+    flippedCards = [];
+    isLock = false;
+    if (cards.every(c => c.matched)) {
+      clearInterval(timer);
+      timer = null;
+      setTimeout(() => alert(`🎉 恭喜完成！用了 ${moves} 步，耗時 ${seconds} 秒`), 300);
+    }
+  } else {
+    setTimeout(() => {
+      a.flipped = false;
+      b.flipped = false;
+      document.querySelector(`.card[data-id="${a.id}"]`).classList.remove('flipped');
+      document.querySelector(`.card[data-id="${b.id}"]`).classList.remove('flipped');
+      flippedCards = [];
+      isLock = false;
+    }, 800);
+  }
+}
+
+initGame();
+</script>
+</body>
+</html>
